@@ -1,0 +1,62 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "EVE Online Delivery Calculator API",
+    "version": "1.0.0",
+    "description": "Public API for calculating delivery costs between space stations in EVE Online"
+  },
+  "servers": [
+    {
+      "url": "{{OPENAPI_SERVER_URL}}",
+      "description": "API Server"
+    }
+  ],
+  "apiDir": "src/app/api/public",
+  "schemaDir": "src/types",
+  "schemaType": "typescript",
+  "outputFile": "openapi.json",
+  "includeOpenApiRoutes": false,
+  "debug": false,
+  "defaultResponseSet": "common",
+  "responseSets": {
+    "common": ["400", "500"],
+    "public": ["400", "500"]
+  },
+  "errorConfig": {
+    "template": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string",
+          "example": "{{ERROR_MESSAGE}}"
+        },
+        "message": {
+          "type": "string",
+          "example": "{{ERROR_DETAILS}}"
+        },
+        "statusCode": {
+          "type": "number",
+          "example": "{{STATUS_CODE}}"
+        }
+      }
+    },
+    "codes": {
+      "400": {
+        "description": "Bad Request",
+        "variables": {
+          "ERROR_MESSAGE": "Validation Error",
+          "ERROR_DETAILS": "Invalid request parameters",
+          "STATUS_CODE": 400
+        }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "variables": {
+          "ERROR_MESSAGE": "Internal Server Error",
+          "ERROR_DETAILS": "An unexpected error occurred",
+          "STATUS_CODE": 500
+        }
+      }
+    }
+  }
+}

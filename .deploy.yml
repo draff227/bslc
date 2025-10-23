@@ -1,0 +1,35 @@
+review:
+  global:
+    remote:
+      script:
+        before:
+        after:
+
+branch:
+  production:
+    remote:
+      - enabled: true
+        host: ${DEPLOY_PRODUCTION_SERVER}
+        ssh_user: ${DEPLOY_SSH_USER}
+        user: ${DEPLOY_USER_AND_GROUP}
+        group: ${DEPLOY_USER_AND_GROUP}
+        site_path: /opt/${DEPLOY_USER_AND_GROUP}/
+        url: ${DEPLOY_URL_PATH}
+        deploy_class: ${DEPLOY_DEPLOY_CLASS}
+        project_dir: deploy-package/
+        script:
+          deploy: RunScripts/Apache.php
+          before:
+          after:
+            - sudo /usr/bin/systemctl restart ${DEPLOY_SERVICE_NAME}
+        file:
+          ignore:
+            - .env
+            - service-logs/
+
+file:
+  ignore:
+    - .git
+    - .deploy.yml
+    - .gitlab-ci.yml
+    - .gitignore

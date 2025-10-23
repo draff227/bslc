@@ -1,0 +1,106 @@
+variables:
+  IMAGE_NODE: $DEPLOY_IMAGE_NODE
+  IMAGE_DEPLOY: $DEPLOY_IMAGE_DEPLOY
+
+  FF_USE_FASTZIP: "true"
+  ARTIFACT_COMPRESSION_LEVEL: "fast"
+  CACHE_COMPRESSION_LEVEL: "fast"
+  TRANSFER_METER_FREQUENCY: 5s
+
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+  COMPOSER_CACHE_DIR: "$CI_PROJECT_DIR/.composer"
+
+  PUPPETEER_CACHE_DIR: "$CI_PROJECT_DIR/libs/puppeteer"
+  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+
+stages:
+  - build
+  - test
+  - deploy
+
+.build-js:
+  stage: build
+  interruptible: true
+  image: $IMAGE_NODE
+  tags:
+    - qa
+  cache:
+    - key: "npm-cache"
+      paths:
+        - .npm/
+      policy: pull-push
+    - key:
+        files:
+          - package-lock.json
+      paths:
+        - node_modules/
+      policy: pull-push
+    - key: "next-build-cache"
+      paths:
+        - .next/cache/
+      policy: pull-push
+  artifacts:
+    expire_in: 1h
+    paths:
+      - deploy-package/
+
+Build JS prod:
+  extends: .build-js
+  environment:
+    name: production
+  only:
+    - production
+  script:
+    - |
+      if [[ ! -d node_modules ]]; then
+        npm ci --prefer-offline --force
+      else
+        echo "NPM dependencies already installed"
+      fi
+    - |
+      if ! ./scripts/check-env-variables.cjs; then
+        echo "Environment variable check failed. Aborting build."
+        exit 1
+      fi
+    - rm -f .env
+    - PATH="$PWD/node_modules/.bin":$PATH npm run build
+    - PATH="$PWD/node_modules/.bin":$PATH npm run openapi:generate
+    # CREATE DEPLOYMENT PACKAGE
+    - echo "Creating optimized deployment package..."
+    - mkdir -p deploy-package
+
+    # Copy Next.js standalone output
+    - cp -r .next/standalone/. deploy-package/
+    - cp -r .next/static deploy-package/.next/static
+    - cp -r public deploy-package/public
+
+    # Copy essential files
+
+    # Show size comparison
+    - echo "=== SIZE COMPARISON ==="
+    - echo "Full node_modules size:"
+    - du -sh node_modules/ || echo "node_modules not found"
+    - echo "Deployment package size:"
+    - du -sh deploy-package/
+    - echo "======================"
+
+.deploy:
+  stage: deploy
+  image: $IMAGE_DEPLOY
+  tags:
+    - qa
+  cache: {}
+  before_script:
+    - source agent-autostart "$CI_PROJECT_ID-$CI_PIPELINE_ID-$_CI_CONCURRENT_ID"
+    - hosts-add "$SSH_KNOWN_HOSTS"
+  after_script:
+    - agent-stop "$CI_PROJECT_ID-$CI_PIPELINE_ID-$_CI_CONCURRENT_ID"
+
+Deploy - production:
+  extends: .deploy
+  environment:
+    name: production
+  only:
+    - production
+  script:
+    - php /opt/deploy/deploy.php
